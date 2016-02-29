@@ -1,0 +1,101 @@
+<# 
+    .SYNOPSIS 
+        Windows Machine Inventory Using PowerShell. 
+ 
+    .DESCRIPTION 
+        This script is to document the Windows machine. This script will work only for Local Machine. 
+ 
+    .EXAMPLE 
+        PS C:\> .\System_Inventory.PS1 
+ 
+    .OUTPUTS 
+        HTML File OutPut ReportDate , General Information , BIOS Information etc. 
+ 
+#> 
+ 
+#Set-ExecutionPolicy RemoteSigned -ErrorAction SilentlyContinue 
+ 
+$UserName = (Get-Item  env:\username).Value  
+$ComputerName = (Get-Item env:\Computername).Value 
+$filepath = (Get-ChildItem env:\userprofile).value 
+ 
+ 
+Add-Content  "$Filepath\style.CSS"  -Value " body { 
+font-family:Calibri; 
+ font-size:10pt; 
+} 
+th {  
+background-color:black; 
+ 
+color:white; 
+} 
+td { 
+ background-color:#19fff0; 
+color:black; 
+}" 
+ 
+Write-Host "CSS File Created Successfully... Executing Inventory Report!!! Please Wait !!!" -ForegroundColor Yellow 
+ 
+#ReportDate 
+$ReportDate = Get-Date | Select -Property DateTime | ConvertTo-Html -Fragment 
+ 
+#General Information 
+$ComputerSystem = Get-WmiObject -Class Win32_ComputerSystem |  
+Select -Property Model , Manufacturer , Description , PrimaryOwnerName , SystemType |ConvertTo-Html -Fragment 
+ 
+#Last Logged on User 
+$LastLoggedonUser = Get-WmiObject -Class Win32_ComputerSystem -Property UserName -ComputerName . |
+Select Username | ConvertTo-Html -Fragment  
+ 
+#BIOS Information 
+$BIOS = Get-WmiObject -Class Win32_BIOS | Select -Property PSComputerName , Manufacturer , Version, serialnumber | ConvertTo-Html -Fragment 
+ 
+#Operating System Information 
+$oslang = get-culture | select-object name
+$OS = Get-WmiObject -Class Win32_OperatingSystem | Select -Property Caption , @{Name='Service Packs';Expression={($_.CSDVersion)}} , OSArchitecture , @{Name='OS Language';Expression={($oslang).name}} | ConvertTo-Html -Fragment 
+     
+#Time Zone Information 
+$TimeZone = Get-WmiObject -Class Win32_TimeZone | Select Caption , @{Name='Time Zone';Expression={($_.StandardName)}} | 
+ConvertTo-Html -Fragment 
+ 
+#Logical Disk Information 
+#Will report on ALL attached Hard Disks
+$Disk = Get-WmiObject -Class Win32_LogicalDisk -Filter DriveType=3 |  
+Select SystemName , DeviceID , @{Name=”Size (GB)”;Expression={“{0:N1}” -f($_.size/1gb)}}, @{Name=”Free Space (GB)”;Expression={“{0:N1}” -f($_.freespace/1gb)}}, @{Name='Free (%)';Expression={[int]($_.Freespace*100/$_.Size)} } | 
+ConvertTo-Html -Fragment 
+ 
+#CPU Information 
+$SystemProcessor = Get-WmiObject -Class Win32_Processor  |  
+Select SystemName , Name , @{Name='Max Clock Speed (GHz)';Expression={"{0:N2}" -f ($_.maxclockspeed/1000)}} , Manufacturer ,  @{Name='Status';Expression={($_.status)}} | ConvertTo-Html -Fragment 
+ 
+#Memory Information 
+$PhysicalMemory = Get-WmiObject -Class Win32_PhysicalMemory | 
+Select -Property Tag , SerialNumber , PartNumber , Manufacturer , DeviceLocator , @{Name="Capacity(GB)";Expression={"{0:N1}" -f ($_.Capacity/1GB)}} | ConvertTo-Html -Fragment 
+
+#Network Information
+$Networkinfo = get-netadapter | 
+select name,interfacedescription,status,macaddress,linkspeed | sort name | ConvertTo-Html -fragment
+ 
+#Software Inventory 
+$Software = Get-WmiObject -Class Win32_Product | 
+#Where-Object name -like "Microsoft*2013" |
+sort name |
+Select Name , Vendor , Version , Caption |ConvertTo-Html -Fragment  
+#If you want to list ONLY "Microsoft 2013" products in the Software Inventory section, uncomment the above "Where-Object" line.
+#Change the filter in the quotes to fill your specific need.
+#If the "Where-Object" line IS commented out, the Software Inventory section will display ALL software shown on the Add/Remove Programs section inside of Windows.
+ 
+ConvertTo-Html -Body "<font color = red><H4><B>Report Created On</B></H4></font>$ReportDate 
+<font color = red><H4><B>General Information</B></H4></font>$ComputerSystem 
+<font color = red><H4><B>Last Logged on User</B></H4></font>$Lastloggedonuser 
+<font color = red><H4><B>BIOS Information</B></H4></font>$BIOS 
+<font color = red><H4><B>Operating System Information</B></H4></font>$OS 
+<font color = red><H4><B>Time Zone Information</B></H4></font>$TimeZone 
+<font color = red><H4><B>Disk Information</B></H4></font>$Disk 
+<font color = red><H4><B>Processor Information</B></H4></font>$SystemProcessor 
+<font color = red><H4><B>Memory Information</B></H4></font>$PhysicalMemory 
+<font color = red><H4><B>Network Information</B></H4></font>$Networkinfo
+<font color = red><H4><B>Software Inventory</B></H4></font>$Software" -CssUri  "$filepath\style.CSS" -Title "Server Inventory" | Out-File "$FilePath\$ComputerName.html" 
+ 
+Write-Host "Script Execution Completed" -ForegroundColor Yellow 
+Invoke-Item -Path "$FilePath\$ComputerName.html"
