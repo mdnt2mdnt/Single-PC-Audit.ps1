@@ -100,4 +100,3 @@ ConvertTo-Html -Body "<font color = red><H4><B>Report Created On</B></H4></font>
  
 Write-Host "Script Execution Completed" -ForegroundColor Yellow 
 Invoke-Item -Path "$FilePath\$ComputerName.html"
- 
