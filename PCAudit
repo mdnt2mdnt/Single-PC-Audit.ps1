@@ -1,4 +1,4 @@
- <# 
+<# 
     .SYNOPSIS 
         Windows Machine Inventory Using PowerShell. 
  
@@ -48,6 +48,7 @@ $LastLoggedonUser = Get-WmiObject -Class Win32_ComputerSystem -Property UserName
 Select Username | ConvertTo-Html -Fragment  
  
 #BIOS Information 
+#May need to use a different variable other than "serialnumber" for warranty information
 $BIOS = Get-WmiObject -Class Win32_BIOS | Select -Property PSComputerName , Manufacturer , Version, serialnumber | ConvertTo-Html -Fragment 
  
 #Operating System Information 
@@ -74,7 +75,7 @@ Select -Property Tag , SerialNumber , PartNumber , Manufacturer , DeviceLocator 
 
 #Network Information
 $Networkinfo = get-netadapter | 
-select name,interfacedescription,status,macaddress,linkspeed | sort name | ConvertTo-Html -fragment
+select name,interfacedescription,status,macaddress,linkspeed,@{Name="Full Duplex?";Expression={($_.fullduplex)}}| sort name | ConvertTo-Html -fragment
  
 #Software Inventory 
 $Software = Get-WmiObject -Class Win32_Product | 
@@ -99,3 +100,4 @@ ConvertTo-Html -Body "<font color = red><H4><B>Report Created On</B></H4></font>
  
 Write-Host "Script Execution Completed" -ForegroundColor Yellow 
 Invoke-Item -Path "$FilePath\$ComputerName.html"
+ 
