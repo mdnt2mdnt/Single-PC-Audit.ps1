@@ -41,19 +41,22 @@ $ReportDate = Get-Date | Select -Property DateTime | ConvertTo-Html -Fragment
  
 #General Information 
 $ComputerSystem = Get-WmiObject -Class Win32_ComputerSystem |  
-Select -Property Model , Manufacturer , Description , PrimaryOwnerName , SystemType |ConvertTo-Html -Fragment 
+Select -Property Model , Manufacturer , Description , @{Name='Owner Name';Expression={($_.PrimaryOwnerName)}} , @{Name='System Type';Expression={($_.SystemType)}} |ConvertTo-Html -Fragment 
  
 #Last Logged on User 
 $LastLoggedonUser = Get-WmiObject -Class Win32_ComputerSystem -Property UserName -ComputerName . |
 Select Username | ConvertTo-Html -Fragment  
  
 #BIOS Information 
-#May need to use a different variable other than "serialnumber" for warranty information
-$BIOS = Get-WmiObject -Class Win32_BIOS | Select -Property PSComputerName , Manufacturer , Version, serialnumber | ConvertTo-Html -Fragment 
+#May need to use a different variable other than "serialnumber" for warranty information.
+#Running on a desktop will require modification to generate the correct information in the report.
+#Run the following command to see a listing of the options you can enter AFTER the "Select -Property" section in the actual command.
+#Get-WmiObject -Class Win32_BIOS | select -property *
+$BIOS = Get-WmiObject -Class Win32_BIOS | Select -Property @{Name='Computer Name';Expression={($_.PSComputerName)}} , Manufacturer , Version, @{Name='Serial Number';Expression={($_.serialnumber)}}, @{Name='Description';Expression={($_.description)}} | ConvertTo-Html -Fragment 
  
 #Operating System Information 
 $oslang = get-culture | select-object name
-$OS = Get-WmiObject -Class Win32_OperatingSystem | Select -Property Caption , @{Name='Service Packs';Expression={($_.CSDVersion)}} , OSArchitecture , @{Name='OS Language';Expression={($oslang).name}} | ConvertTo-Html -Fragment 
+$OS = Get-WmiObject -Class Win32_OperatingSystem | Select -Property Caption , @{Name='Service Packs';Expression={($_.CSDVersion)}} , @{Name='OS Architecture';Expression={($_.osarchitecture)}} , @{Name='OS Language';Expression={($oslang).name}} | ConvertTo-Html -Fragment 
      
 #Time Zone Information 
 $TimeZone = Get-WmiObject -Class Win32_TimeZone | Select Caption , @{Name='Time Zone';Expression={($_.StandardName)}} | 
@@ -62,26 +65,26 @@ ConvertTo-Html -Fragment
 #Logical Disk Information 
 #Will report on ALL attached Hard Disks
 $Disk = Get-WmiObject -Class Win32_LogicalDisk -Filter DriveType=3 |  
-Select SystemName , DeviceID , @{Name=”Size (GB)”;Expression={“{0:N1}” -f($_.size/1gb)}}, @{Name=”Free Space (GB)”;Expression={“{0:N1}” -f($_.freespace/1gb)}}, @{Name='Free (%)';Expression={[int]($_.Freespace*100/$_.Size)} } | 
+Select @{Name='Drive Letter';Expression={($_.DeviceID)}} , @{Name=”Size (GB)”;Expression={“{0:N1}” -f($_.size/1gb)}}, @{Name=”Free Space (GB)”;Expression={“{0:N1}” -f($_.freespace/1gb)}}, @{Name='Free (%)';Expression={[int]($_.Freespace*100/$_.Size)} } | 
 ConvertTo-Html -Fragment 
  
 #CPU Information 
 $SystemProcessor = Get-WmiObject -Class Win32_Processor  |  
-Select SystemName , Name , @{Name='Max Clock Speed (GHz)';Expression={"{0:N2}" -f ($_.maxclockspeed/1000)}} , Manufacturer ,  @{Name='Status';Expression={($_.status)}} | ConvertTo-Html -Fragment 
+Select @{Name='System Name';Expression={($_.SystemName)}} , Name , @{Name='Max Clock Speed (GHz)';Expression={"{0:N2}" -f ($_.maxclockspeed/1000)}} , Manufacturer ,  @{Name='Status';Expression={($_.status)}} | ConvertTo-Html -Fragment 
  
 #Memory Information 
 $PhysicalMemory = Get-WmiObject -Class Win32_PhysicalMemory | 
-Select -Property Tag , SerialNumber , PartNumber , Manufacturer , DeviceLocator , @{Name="Capacity(GB)";Expression={"{0:N1}" -f ($_.Capacity/1GB)}} | ConvertTo-Html -Fragment 
+Select -Property Tag , @{Name='Serial Number';Expression={($_.serialNumber)}} , @{Name='Part Number';Expression={($_.PartNumber)}} , Manufacturer , @{Name='RAM Bank';Expression={($_.devicelocator)}} , @{Name="Capacity (GB)";Expression={"{0:N1}" -f ($_.Capacity/1GB)}} | ConvertTo-Html -Fragment 
 
 #Network Information
 $Networkinfo = get-netadapter | 
-select name,interfacedescription,status,macaddress,linkspeed,@{Name="Full Duplex?";Expression={($_.fullduplex)}}| sort name | ConvertTo-Html -fragment
+select @{Name='Network Connection Name';Expression={($_.name)}}, @{Name='Network Interface';Expression={($_.interfacedescription)}},status,@{Name='Mac Address';Expression={($_.macaddress)}},@{Name='Link Speed';Expression={($_.linkspeed)}},@{Name="Full Duplex?";Expression={($_.fullduplex)}}| sort status -descending | ConvertTo-Html -fragment
  
 #Software Inventory 
 $Software = Get-WmiObject -Class Win32_Product | 
 #Where-Object name -like "Microsoft*2013" |
 sort name |
-Select Name , Vendor , Version , Caption |ConvertTo-Html -Fragment  
+Select @{Name='Installed Software';Expression={($_.name)}} , Vendor , Version , @{Name='Description';Expression={($_.Caption)}} |ConvertTo-Html -Fragment  
 #If you want to list ONLY "Microsoft 2013" products in the Software Inventory section, uncomment the above "Where-Object" line.
 #Change the filter in the quotes to fill your specific need.
 #If the "Where-Object" line IS commented out, the Software Inventory section will display ALL software shown on the Add/Remove Programs section inside of Windows.
@@ -96,7 +99,9 @@ ConvertTo-Html -Body "<font color = red><H4><B>Report Created On</B></H4></font>
 <font color = red><H4><B>Processor Information</B></H4></font>$SystemProcessor 
 <font color = red><H4><B>Memory Information</B></H4></font>$PhysicalMemory 
 <font color = red><H4><B>Network Information</B></H4></font>$Networkinfo
-<font color = red><H4><B>Software Inventory</B></H4></font>$Software" -CssUri  "$filepath\style.CSS" -Title "Server Inventory" | Out-File "$FilePath\$ComputerName.html" 
+<font color = red><H4><B>Software Inventory</B></H4></font>$Software" -CssUri  "$filepath\style.CSS" -Title "Server Inventory" | Out-File "$FilePath\$ComputerName.htm" 
  
 Write-Host "Script Execution Completed" -ForegroundColor Yellow 
-Invoke-Item -Path "$FilePath\$ComputerName.html"
+
+#forces report to be displayed in Internet Explorer. Displaying in Chrome doesn't view properly.
+(new-object -ComObject InternetExplorer.Application).navigate("$FilePath\$ComputerName.htm")
