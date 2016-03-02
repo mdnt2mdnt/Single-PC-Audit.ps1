@@ -70,7 +70,7 @@ ConvertTo-Html -Fragment
  
 #CPU Information 
 $SystemProcessor = Get-WmiObject -Class Win32_Processor  |  
-Select @{Name='System Name';Expression={($_.SystemName)}} , Name , @{Name='Max Clock Speed (GHz)';Expression={"{0:N2}" -f ($_.maxclockspeed/1000)}} , Manufacturer ,  @{Name='Status';Expression={($_.status)}} | ConvertTo-Html -Fragment 
+Select @{Name='System Name';Expression={($_.SystemName)}} , @{Name='CPU Model';Expression={($_.Name)}} , @{Name='Max Clock Speed (GHz)';Expression={"{0:N2}" -f ($_.maxclockspeed/1000)}} , Manufacturer ,  @{Name='Status';Expression={($_.status)}} | ConvertTo-Html -Fragment 
  
 #Memory Information 
 $PhysicalMemory = Get-WmiObject -Class Win32_PhysicalMemory | 
