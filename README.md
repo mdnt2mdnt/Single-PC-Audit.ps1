@@ -1,4 +1,4 @@
-# PS---Single-PC-Audit
+#Single-PC-Audit
 This script will create a report that lists the Computer Specs for a single computer (not for domain wide scanning)
 
 CPU speed, Processor Type
